@@ -1,0 +1,193 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{amsmath}
+%\usepackage{displaymath}
+\usepackage{cleveref}
+%opening
+\title{Applied geometric modelling, STE6247}
+\author{
+Daniel G. Razafimandimby, 500311 \\ \\
+Master of Technology, 5 Data/IT, \\
+Narvik University College, Narvik, Norway
+}
+\date{\today}
+\begin{document}
+\maketitle
+\begin{abstract}
+\end{abstract}
+%\tableofcontents
+\section{Introduction}
+The goal of this project was to create and implement our own ERBS surface class, complete with evaluators for the ERBS and it's subsurfaces. The part about tesselation was not supposed to be implemented, however the theory shall be covered
+in this report. This project was written for the course STE6247 Applied Geometry and Special Effects. 
+\subsection{GMlib}
+GMlib is an open source geometric modelling library developed and maintained at Narvik University College, NUC, by the college's teachers and students. The library contains several modules for creating and visualizing parametrized objects, such as curves, surfaces and volumes.
+\subsection{Coding convention}
+The code written for this project follows a mix of my own style of coding and the Google C++ Style Guide. 
+
+\section{Parametric surfaces}
+\subsection{Bezier and the evaluator}
+A bezier curve is a parametrized curve with knot vectors which range from 0 to 1 and can be defined for any degree n. Higher dimensions of bezier curves are called bezier surfaces and they are defined by a set of control points and the position of a point P is is given by the parametric coordinates u and v.
+
+There are three different types of evaluators used for Bezier curves: de Casteljau algorithm, a Cox/de'Boor algorithm and computing the Bernstein polynomials directly \cite{book_bperbs}. In this project, I have used a Cox/deBor algorithm: computing from the left. The algorithm starts by filling in the matrix with the Bernstein polynomial between first and the requested degree.
+\label{fig:bezierEval1}
+\begin{lstlisting}[frame=single, caption={Assigning the top half of the matrix.}] 
+//Matrix is the incoming matrix, degree is the 
+//Bernstein polynomial degree, t is the parameter
+//value 0 <= t <= 1 and scaling factor delta.
+function compute basis matrix(matrix, degree, t, delta)
+  matrix[degree-1][0] = 1 - t
+  matrix[degree-1][1] = 1
+  for(i = rows - 2; i >= 0; i--)
+    matrix[i][0] = (1 - t) matrix[i+1][0]
+    for(j = 1; j < degree - i; j++)
+      matrix[i][j] = t * matrix[i+1][j-1] + (1-t)
+                   * matrix[i+1][j]
+    end for
+    matrix[i][degree-i] = t * matrix[i+1][degree-i-1]
+  end for
+\end{lstlisting}
+Following this every row except the first one is multiplied with the delta and derivatives.  
+\label{fig:bezierEval2}
+\begin{lstlisting}[frame=single, caption={Assigning the bottom half of the matrix}] 
+  matrix[degree][0] = -delta
+  matrix[degree][1] = delta
+  for(k = 2; k <= degree; k++)
+    scale = k * delta
+    for(i = degree; i > degree-k; i--)
+      matrix[i][k] = scale * matrix[i][k-1]
+      for(j = 1; j < degree - i; j++)
+        matrix[i][j] = scale * (matrix[i][j-1]
+                      - matrix[i][j])
+      end for
+      matrix[i][0] = -scale * matrix[i][0]
+    end for
+  end for
+end function
+\end{lstlisting}
+Because the Bezier surface ranges from 0 to 1, a scaling parameter is introduced and multiplied into every row except the first. It is written by course professor Lakså in a paper from 2010: ``\textit{If the domain of the Bezier curve is scaled, as is the norm, because of the global/local affine mapping, then, in order to compute, for instance, the local Bezier curve $c_{i}(t)$, the j-th derivatives actually have to be scaled by the global/local ''scaling factor`` $\delta_{i}^{j}$ where
+\begin{equation}
+ \delta_{i} = \frac{1}{t_{i+1}-t_{i-1}}
+\end{equation}
+as described in Theorem 1. The numerator in the fraction is 1 because the domain of the Bezier curves is [0,1]. Because the matrix is supposed to be used both in Hermite interpolatino and in the evaluation of local curvse, this matrix has to include the scaling, as described earlier.}'' \cite{art_gmbf}.
+The evaluator creates a basis matrix for both u and v, b1 and b2 respectively, and then multiplies these two, where b2 is transposed, with the matrix containing the control points.
+\begin{equation}
+ p = b1 * c_{control points} * b2^{T}
+\end{equation}
+
+
+\subsection{B-spline}
+A b-spline is a curve which has knot definitions ranging from 0 to n. Formula ~\ref{eq:bspline} shows the formula for a third degree B-spline curve \cite{book_bperbs}. 
+\begin{multline} \label{eq:bspline}
+c(t)=\begin{pmatrix}
+1-w_{1,i}(t) & w_{1,i}(t)
+\end{pmatrix}
+\begin{pmatrix}
+1-w_{2,i}(t) & w_{2,i}(t) & 0 \\ 
+0 & 1-w_{2,i}(t) & w_{2,i}(t) 
+\end{pmatrix}
+\\
+\begin{pmatrix}
+1-w_{3,i}(t) & w_{3,i}(t) & 0 & 0\\ 
+0 &  1-w_{3,i}(t) & w_{3,i}(t)  & 0 \\ 
+0 & 0 &  1-w_{3,i}(t) & w_{3,i}(t) 
+\end{pmatrix}
+\begin{pmatrix}
+c_{i-3}\\ 
+c_{i-2}\\ 
+c_{i-1}\\ 
+c_{i}
+\end{pmatrix}
+\end{multline}
+The evaluator for a B-spline is very similar to the Bezier algorithm, however as the B-spline has multiple interior knots which makes it necessary to find the corresponding knot-index to t. Therefore instead of using t in the matrix, we introduce a function w which maps the value between 0 and 1. This function is dependant on the knot index, knot value and the Berstein polynomial degree and is described as \cite{book_btcsc}
+
+\begin{equation}
+w_{d,i}=\left\{\begin{matrix}
+\frac{t-t_{i}}{t_{i+d}-t_{i}}, \textup{if}: t_{i} \leq t < t_{i+d}\\ 
+0, \textup{otherwise}
+\end{matrix}\right.
+\end{equation}
+
+\subsection{Expressional rational B spline (ERBS), and ERBS surfaces}
+An expressional rational B-spline, ERBS, is a new type of B-spline, purposed by Arne Lakså, Børre Bang and Lubomir T. Dechevsky \cite{rp_erbs}. The concept is shortly explained in their article, Exploring Expo-Rational B-splines for Curves and Surfaces\cite{art_eerbscs}. This was created to cover some of the limitations found in regular B-splines.
+
+An ERBS surface is a surface which consists of an amount of local patches which are created by either using bezier surfaces or sub surfaces. These local patches are created by deciding the size of the grid and if the surface is closed in u- and/or v-direction. This information is then used to construct the knot-vectors which will be the basis for the surface.
+
+The evaulator starts by finding which knot index the u and v value belongs to by checking if \begin{math}u_{indexU}\leq u < u_{indexU+1}\end{math} and \begin{math}v_{indexV}\leq v < v_{indexV+1}\end{math}, where indexU and indexV are the knot indices. Following this it creates two b vectors, b1 and b2, by using GMlib's own ERBSEvaluator class which gives the value and derivative at the given knot. 
+Then if the local surfaces are Bezier surfaces it maps the u and v parameters between 0 and 1 by the following function:
+\begin{equation}
+ u_{mapped} = \frac{u-u_{indexU-1}}{u_{indexU+1}-u_{indexU-1}}
+\end{equation}
+Using these mapped value the \begin{math}s_{2,2}\end{math}, \begin{math}su_{2,2}\end{math} and \begin{math}sv_{2,2}\end{math} matrices, which contain positions and derivatives in u- and v-direction, are created. These matrices are then transposed and multiplied with the b vectors to create the positions and their belonging partial derivatives,
+\begin{lstlisting}[frame=single, caption={Assigning the p matrix}] 
+    this->_p[0][0] = bv * (s ^ bu);
+    this->_p[0][1] = bv * (s ^ bud) + bv * (su ^ bu);
+    this->_p[1][0] = bvd * (s ^ bu) + bv * (sv ^ bu);
+\end{lstlisting}
+
+\subsection{Tesselation}
+Tesselation is a technique where we till a plane into different shapes. It is not permitted to have overlapping edges or gaps between the lines which define the shape. Regular tesselations are made up of regular polygons, all meeting vertex to vertex. 
+The most common ways of tesselating is to use a network of triangles or squares.
+
+Irregular tesselations occur when there are no restrictions on the order of the polygons around the vertices. 
+
+\paragraph{The Delaunay}
+triangulation algorithm goes as follows:
+\begin{enumerate}
+ \item Find convex hull, which is the polygon with teh smallest area which includes every point. 
+ \item Add 3 to 4 new points to create one or two boundary triangles.
+ \item For each point perform Delaunay.
+ \item Remove the extra newly added points with their associated edges and triangles.
+\end{enumerate}
+
+\paragraph{A Quad tree}
+is a rooted tree where the internal nodes has four children. The algorithm goes as follows:
+\begin{enumerate}
+\item Recursively partition until there are only a given number of points left in the nodes
+\item Balance the tree.
+\item Add a Steiner point inside the nodes with two neighbours in any direction (east, south, west, north).
+\item Make lines to form triangles between the corners and the Steiner point.
+\end{enumerate}
+This algorithm requires the tree to be balanced, which occurs when every node in the tree has no more than two neighbouring squares in any direction. If the tree is unbalanced, additional nodes must be created \cite{book_cg}. 
+
+\section{My project}
+\subsection{MyERBSSurface}
+MyERBSSurface is capable of receiving a surface to copy and convert it to an ERBS surface. It can currently use either subsurfaces or bezier surfaces to generate the surface. 
+
+\paragraph{MySubsurface}
+is one of the two supported classes which the ERBS surface can use to create local patches. It is constructed using a parametric surface and the evaluation is only done between the knot value of the previous and the next index. When evaluating with this class, it utilizes the surface's evaluateParent function. 
+
+\paragraph{MyBezierSurface}
+is the other class which the ERBS surface can use to make the local surfaces. It uses the evaluator function which was described in Section \ref{fig:bezierEval1}, and only evaluates between 0 and 1. 
+
+\subsection{Help classes and containers}
+\paragraph{MyKnotVector}
+is a simple data container which contains the information needed to create a knot vector. 
+
+\paragraph{Animation}
+is a helper class which performs the animations of surfaces. The various types of animations are seperated into individual classes which inherit from a common class. 
+
+\subsection{My animation/effect}
+One part of the task was to create a special effect using the self implemented ERBS surface by finding a surface and doing affine operations upon this surface. I found the formula for a fish \cite{web_fish}.
+\begin{equation}
+\begin{split}
+ x = \frac{(cos(u) - cos(2u))cos(v)}{4} \\
+ y = \frac{(sin(u) - sin(2u))sin(v)}{4} \\
+ z = cos(u) \\
+ 0 \leq u \leq \pi, 0 \leq v \leq 2\pi
+\end{split}
+\end{equation}
+This fish is then to be animated to look, from the front, like it's swimming. Then to add to the effect I will make a flat plane and animate it with waves, to look like water. 
+
+\section{Conclusion}
+The implementation of the ERBS-surface with both sub surface and bezier went mostly without problems. The biggest problems I encountered were caused by typos in my code, like by mistake typing u for v and vice versa. The creation of the animation, however was a much bigger challenge than anticipated, 
+as the control points were somewhat difficult to manipulate with the surface I had created. The water animation also gave me problems, which I have been unable to find the cause for. The simple function I had created to create the waves were insufficient to make the animation, as the plane would continue
+to escalate and grow, instead of having a smooth wave pattern. Because of this I simplified it down to just a sinus wave. 
+
+\paragraph{The source code}
+for this project can be found on: https://github.com/oxycoon/GeoMod2-BezierBSpline.
+
+\bibliographystyle{alpha}
+\bibliography{sources}
+\end{document}

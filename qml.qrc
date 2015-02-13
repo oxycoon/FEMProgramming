@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/main.qml</file>
+        <file>qml/components/DefaultRenderWindow.qml</file>
+        <file>qml/components/RelativeSplitView.qml</file>
+        <file>qml/components/View.qml</file>
+    </qresource>
+</RCC>
