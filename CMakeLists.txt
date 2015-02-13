@@ -60,7 +60,7 @@ set( HDRS
   guiapplication.h
   window.h
   utils.h
-  drum.h
+  #drum.h
   nodes.h
   femsolver.h
   )
@@ -72,7 +72,7 @@ set( SRCS
   guiapplication.cpp
   main.cpp
   window.cpp
-  drum.cpp
+  #drum.cpp
   nodes.cpp
   femsolver.cpp
   )

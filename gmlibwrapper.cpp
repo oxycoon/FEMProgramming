@@ -251,7 +251,14 @@ void GMlibWrapper::initScene() {
     _select_renderer = std::make_shared<GMlib::DefaultSelectRenderer>();
 
 
-    _femSolver = new FEMSolver(4, 2, 10.0f, _scene);
+    _femSolver = new FEMSolver();
+    _femSolver->makeRegular(4, 2, 10.0f);
+    _femSolver->prepareComputation();
+    _femSolver->setMaxForce(0.1f);
+    _femSolver->computeNormals();
+    _femSolver->enableDefaultVisualizer();
+    _femSolver->replot();
+    _scene->insert(_femSolver);
 
   } _glsurface->doneCurrent();
 }
