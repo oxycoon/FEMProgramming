@@ -1,28 +1,5 @@
 #include "femsolver.h"
 
-#include "drum.h"
-
-/**
- * @brief FEMSolver::FEMSolver
- * @param n Triangles on innermost circle
- * @param m Number of circles
- * @param radius Radius of circle
- * @param scene
- */
-/*FEMSolver::FEMSolver(int n, int m, float radius, std::shared_ptr<GMlib::Scene> scene)
-{
-    GMlib::ArrayLX<GMlib::TSVertex<float> > temp;
-    makeRegular(temp, n, m, radius);
-    _scene = scene;
-
-    _theDrum = new Drum(temp);
-    _theDrum->setMaxForce(0.1);
-    _theDrum->prepareComputation();
-    _theDrum->computeNormals();
-    _theDrum->replot();
-    _scene->insert(_theDrum);
-}*/
-
 FEMSolver::FEMSolver(int d) : TriangleFacets<float>(d)
 {
 
@@ -154,8 +131,6 @@ void FEMSolver::prepareComputation()
         }
     }
     _a.invert();
-
-    std::cout << _a << std::endl;
 
     //Create load vectors
     _b.setDim(_nodes.size());

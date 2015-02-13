@@ -7,7 +7,7 @@
 
 #include <memory>
 
-//class Drum;
+
 
 
 class FEMSolver : public GMlib::TriangleFacets<float>
@@ -32,10 +32,6 @@ protected:
     void localSimulate(double dt);
 
 private:
-    //Drum* _theDrum;
-
-    //std::shared_ptr<GMlib::Scene> _scene;
-
     float _force;
     float _maxForce;
 
