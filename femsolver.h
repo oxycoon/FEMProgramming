@@ -45,6 +45,8 @@ private:
     GMlib::Vector<GMlib::Vector<float,2>, 3> findVectors(GMlib::TSTriangle<float>* triangle, Nodes* nodes);
 
     void updateHeights(float force);
+
+    bool proximity(GMlib::ArrayLX<GMlib::TSVertex<float> >& array, GMlib::Point<float,2> &vertex, float r);
 };
 
 #endif // FEMSOLVER_H

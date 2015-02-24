@@ -1,5 +1,7 @@
 #include "femsolver.h"
 
+#include <gmCoreModule>
+
 FEMSolver::FEMSolver(int d) : TriangleFacets<float>(d)
 {
 
@@ -24,7 +26,7 @@ void FEMSolver::makeRegular(int n, int m, float radius)
         {
             GMlib::Angle a(j*M_2PI / (inner) );
             GMlib::SqMatrix<float,2> matrix(a, GMlib::Vector<float,2>(1,0), GMlib::Vector<float,2>(0,1) );
-            array[elements++].setPos(matrix * GMlib::Point<float,2>(radius * (i+1)/m, 0));
+            array[elements++].setPos(matrix * GMlib::Point<float,2>(radius * (i+1)/m, 0) );
         }
     }
     this->insertAlways(array);
@@ -32,7 +34,43 @@ void FEMSolver::makeRegular(int n, int m, float radius)
 
 void FEMSolver::makeRandom(int n, float radius)
 {
+    int m = std::max(1.1, M_PI / (M_SQRT3 * sin(M_PI/n) * sin(M_PI/n) ) / (2 * n) );
+    float at = (M_PI * sqrt(radius) ) / (2 * (n * (m + 1) - 1) - n);
+    float s = sqrt(4 / M_SQRT3 * at);
+    float nr = s / (std::max(1.1, 0.1 + 0.055 * n) );
+    s *= 0.8;
 
+    GMlib::Random<float> rng(-radius, radius);
+    GMlib::ArrayLX<GMlib::TSVertex<float> > array;
+    array.setSize(1 + n * (m + 1) );
+    array[0].setPos(GMlib::Point<float,3>(0,0,0));
+
+    int index = 1;
+    for(int i = 0; i < n; i++)
+    {
+        GMlib::Angle a(i * M_2PI / n);
+        GMlib::SqMatrix<float,2> matrix(a, GMlib::Vector<float,2>(1,0), GMlib::Vector<float,2>(0,1) );
+        array[index++].setPos(matrix * GMlib::Vector<float,2>(radius,0) );
+
+        bool insert = false;
+        int m_ = 1;
+
+        do{
+            GMlib::Point<float,2> point(rng.get(), rng.get());
+            float length = point.getLength();
+
+            if(proximity(array, point, nr) && length < radius-s)
+            {
+                array[index++].setPos(point);
+                if(m_ = m)
+                {
+                    insert = true;
+                }
+                m_++;
+            }
+        }while(!insert);
+    }
+    this->insertAlways(array);
 }
 
 void FEMSolver::setForce(float force)
@@ -110,12 +148,12 @@ void FEMSolver::prepareComputation()
                 //triangle 1
                 dh1 = dd * (d[1] * d[0]);
                 area1 = std::abs(d[0] ^ d[1]);
-                h1 = dd * area1;
+                h1 = dd * area1*area1;
 
                 //triangle 2
                 dh2 = dd * (d[2] * d[0]);
                 area2 = std::abs(d[0] ^ d[2]);
-                h2 = dd * area1;
+                h2 = dd * area2*area2;
 
                 //Stiffness elements outside diagonal
                 _a[i][j] = _a[j][i] = ( (dh1 * (1 - dh1) ) / h1 - dd) * area1 / 2 +
@@ -168,6 +206,19 @@ void FEMSolver::updateHeights(float force)
     {
         _nodes[i].setZ(x[i]);
     }
+}
+
+bool FEMSolver::proximity(GMlib::ArrayLX<GMlib::TSVertex<float> > &array, GMlib::Point<float, 2> &vertex, float r)
+{
+    for(int i = 0; i < array.size(); i++)
+    {
+        GMlib::Vector<float,2> v = vertex - array[i].getParameter();
+        if(v*v < r)
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 GMlib::Vector<GMlib::Vector<float, 2>, 3> FEMSolver::findVectors(GMlib::TSTriangle<float> *triangle, Nodes *node)
