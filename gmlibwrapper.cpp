@@ -183,7 +183,7 @@ void GMlibWrapper::initScene() {
 
 
     int init_viewport_size = 600;
-    GMlib::Point<float,3> init_cam_pos(  0.0f, 0.0f, 0.0f );
+    GMlib::Point<float,3> init_cam_pos(  0.0f, 20.0f, 20.0f );
     GMlib::Vector<float,3> init_cam_dir( 0.0f, 1.0f, 0.0f );
     GMlib::Vector<float,3> init_cam_up(  0.0f, 0.0f, 1.0f );
 
@@ -252,14 +252,14 @@ void GMlibWrapper::initScene() {
 
 
     _femSolver = new FEMSolver();
-    //_femSolver->makeRegular(8, 4, 10.0f);
-    _femSolver->makeRandom(16, 10.0f);
+    _femSolver->makeRegular(16, 4, 20.0f);
+    //_femSolver->makeRandom(32, 20.0f);
     _femSolver->prepareComputation();
     _femSolver->setMaxForce(0.1f);
     _femSolver->computeNormals();
     _femSolver->enableDefaultVisualizer();
     _femSolver->replot();
-    _femSolver->translate(GMlib::Vector<float,3>(0,-10.0f,0));
+    //_femSolver->translate(GMlib::Vector<float,3>(0,-10.0f,0));
     _scene->insert(_femSolver);
 
   } _glsurface->doneCurrent();

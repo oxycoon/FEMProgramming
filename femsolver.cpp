@@ -62,7 +62,7 @@ void FEMSolver::makeRandom(int n, float radius)
             if(proximity(array, point, nr) && length < radius-s)
             {
                 array[index++].setPos(point);
-                if(m_ = m)
+                if(m_ == m)
                 {
                     insert = true;
                 }
